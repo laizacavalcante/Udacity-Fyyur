@@ -94,7 +94,6 @@ def venues():
 
         for match in venue_loc["venues"]:
             match["upcoming_shows"] = upcoming_shows
-        print(venue_loc)
 
     return render_template("pages/venues.html", areas=venue_locations)
 
@@ -103,7 +102,6 @@ def venues():
 def search_venues():
     requested_word = request.form.get("search_term", None)
     requested_word = requested_word.lower()
-    print(requested_word)
 
     venue_match = (
         db.session.query(Venue.id, Venue.name)
@@ -122,7 +120,6 @@ def search_venues():
             .count()
         )
         venue_m["num_upcoming_shows"] = num_upcoming_shows
-    print(venue_match_dict)
     response = {"count": len(venue_match), "data": venue_match_dict}
 
     return render_template(
@@ -181,8 +178,6 @@ def show_venue(venue_id):
                 if k == "start_time":
                     show["start_time"] = v.isoformat()
 
-    print(output_dict)
-
     return render_template("pages/show_venue.html", venue=output_dict)
 
 
@@ -198,7 +193,6 @@ def create_venue_form():
 
 @app.route("/venues/create", methods=["POST"])
 def create_venue_submission():
-    error = False
     try:
         # REVIEW o forumlário já está válido?
         venue_info = VenueForm(request.form)
@@ -221,9 +215,7 @@ def create_venue_submission():
 
         flash(f"Venue {request.form['name']} was successfully listed!")
     except:
-        error = True
         flash(f"An error occured, {request.form['name']} could not be listed")
-        # see: http://flask.pocoo.org/docs/1.0/patterns/flashing/
 
     finally:
         db.session.close()
@@ -233,18 +225,13 @@ def create_venue_submission():
 
 @app.route("/venues/<venue_id>/delete", methods=["GET"])
 def delete_venue(venue_id):
-    print("delete_venue")
-    print(venue_id)
-    error = False
     try:
         venue_remove = Venue.query.get(venue_id)
         db.session.delete(venue_remove)
         db.session.commit()
-        print("removido")
         flash(f"{venue_remove.name} removed!")
 
     except:
-        error = True
         db.session.rollback()
         flash(f"An error occured, {venue_remove.name} could not be removed")
     finally:
@@ -257,11 +244,7 @@ def delete_venue(venue_id):
 #  ----------------------------------------------------------------
 @app.route("/artists")
 def artists():
-    print("\n Rota artists")
-
     artists = db.session.query(Artist.name, Artist.id).all()
-    print(artists)
-
     return render_template("pages/artists.html", artists=artists)
 
 
@@ -269,7 +252,6 @@ def artists():
 def search_artists():
     requested_word = request.form.get("search_term", None)
     requested_word = requested_word.lower()
-    print(requested_word)
 
     artist_match = (
         db.session.query(Artist.id, Artist.name)
@@ -288,7 +270,6 @@ def search_artists():
             .count()
         )
         artist_m["num_upcoming_shows"] = num_upcoming_shows
-    print(artist_match_dict)
 
     response = {"count": len(artist_match), "data": artist_match_dict}
     return render_template(
@@ -352,7 +333,6 @@ def show_artist(artist_id):
                 if k == "start_time":
                     show["start_time"] = v.isoformat()
 
-    print(request_artist_dict)
     return render_template("pages/show_artist.html", artist=request_artist_dict)
 
 
@@ -360,7 +340,6 @@ def show_artist(artist_id):
 #  ----------------------------------------------------------------
 @app.route("/artists/<int:artist_id>/edit", methods=["GET"])
 def edit_artist(artist_id):
-    print("edit_artist")
     artist_info = Artist.query.get(artist_id)
     form = ArtistForm(
         name=artist_info.name,
@@ -380,7 +359,6 @@ def edit_artist(artist_id):
 
 @app.route("/artists/<int:artist_id>/edit", methods=["POST"])
 def edit_artist_submission(artist_id):
-    print("route -> edit_artist_submission")
     error = False
     try:
         form = ArtistForm(request.form)
@@ -397,13 +375,11 @@ def edit_artist_submission(artist_id):
         artist_update.seeking_venue = form.seeking_venue.data
         artist_update.seeking_description = form.seeking_description.data
 
-        print("Artista atualizado")
         db.session.commit()
 
     except:
         error = True
         db.session.rollback()
-        print(f"Erro ao atualizar o artista {artist_id}")
     finally:
         db.session.close()
 
@@ -417,7 +393,6 @@ def edit_artist_submission(artist_id):
 
 @app.route("/venues/<int:venue_id>/edit", methods=["GET"])
 def edit_venue(venue_id):
-    print("edit_artist")
     venue_info = Venue.query.get(venue_id)
     form = VenueForm(
         name=venue_info.name,
@@ -438,7 +413,6 @@ def edit_venue(venue_id):
 
 @app.route("/venues/<int:venue_id>/edit", methods=["POST"])
 def edit_venue_submission(venue_id):
-    print("route -> edit_artist_submission")
     error = False
     try:
         form = VenueForm(request.form)
@@ -456,13 +430,11 @@ def edit_venue_submission(venue_id):
         venue_update.seeking_talent = form.seeking_talent.data
         venue_update.seeking_description = form.seeking_description.data
 
-        print("Venue atualizado")
         db.session.commit()
 
     except:
         error = True
         db.session.rollback()
-        print(f"Erro ao atualizar o Venue {venue_id}")
     finally:
         db.session.close()
 
@@ -486,7 +458,6 @@ def create_artist_form():
 
 @app.route("/artists/create", methods=["POST"])
 def create_artist_submission():
-    error = False
     try:
         # REVIEW o forumlário já está válido?
         artist_info = ArtistForm(request.form)
@@ -508,7 +479,6 @@ def create_artist_submission():
 
         flash(f"Artist {request.form['name']} was successfully listed!")
     except:
-        error = True
         flash(f"An error occured, {request.form['name']} could not be listed")
         # see: http://flask.pocoo.org/docs/1.0/patterns/flashing/
 
@@ -556,7 +526,6 @@ def create_shows():
 
 @app.route("/shows/create", methods=["POST"])
 def create_show_submission():
-    error = False
     try:
         # REVIEW o forumlário já está válido?
         new_show_info = ShowForm(request.form)
@@ -571,7 +540,6 @@ def create_show_submission():
 
         flash("Show was successfully listed!")
     except:
-        error = True
         flash(f"An error occured, current show could not be listed")
 
     finally:

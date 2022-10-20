@@ -1,3 +1,8 @@
+# TODO
+# Implementar busca de shows
+# Verificar URL vazia (inserção de artistas ou venues)
+
+
 # ----------------------------------------------------------------------------#
 # Imports
 # ----------------------------------------------------------------------------#
@@ -171,7 +176,6 @@ def show_venue(venue_id):
     output_dict["past_shows_count"] = len(past_shows)
     output_dict["upcoming_shows_count"] = len(upcoming_shows)
 
-    # TODO criar uma funćão para modificar a data
     for shows in [output_dict["upcoming_shows"], output_dict["past_shows"]]:
         for show in shows:
             for k, v in show.items():
@@ -193,33 +197,40 @@ def create_venue_form():
 
 @app.route("/venues/create", methods=["POST"])
 def create_venue_submission():
-    try:
-        # REVIEW o forumlário já está válido?
-        venue_info = VenueForm(request.form)
+    venue_info = VenueForm(request.form, meta={"csrf": False})
 
-        new_venue = Venue()
-        new_venue.name = venue_info.name.data
-        new_venue.city = venue_info.city.data
-        new_venue.state = venue_info.state.data
-        new_venue.address = venue_info.address.data
-        new_venue.phone = venue_info.phone.data
-        new_venue.genres = venue_info.genres.data
-        new_venue.facebook_link = venue_info.facebook_link.data
-        new_venue.image_link = venue_info.image_link.data
-        new_venue.website_link = venue_info.website_link.data
-        new_venue.seeking_description = venue_info.seeking_description.data
-        new_venue.seeking_talent = venue_info.seeking_talent.data
+    # Check Phone number and URLs
+    if venue_info.validate_on_submit():
+        # if venue_info.validate():
 
-        db.session.add(new_venue)
-        db.session.commit()
+        try:
+            new_venue = Venue(**venue_info.to_dict())
+            # new_venue = Venue()
+            # new_venue.name = venue_info.name.data
+            # new_venue.city = venue_info.city.data
+            # new_venue.state = venue_info.state.data
+            # new_venue.address = venue_info.address.data
+            # new_venue.phone = venue_info.phone.data
+            # new_venue.genres = venue_info.genres.data
+            # new_venue.facebook_link = venue_info.facebook_link.data
+            # new_venue.image_link = venue_info.image_link.data
+            # new_venue.website_link = venue_info.website_link.data
+            # new_venue.seeking_description = venue_info.seeking_description.data
+            # new_venue.seeking_talent = venue_info.seeking_talent.data
 
-        flash(f"Venue {request.form['name']} was successfully listed!")
-    except:
-        flash(f"An error occured, {request.form['name']} could not be listed")
+            db.session.add(new_venue)
+            db.session.commit()
 
-    finally:
-        db.session.close()
+            flash(f"Venue {request.form['name']} was successfully listed!")
+        except:
+            flash(f"An error occured, {request.form['name']} could not be listed")
+        finally:
+            db.session.close()
 
+    else:
+        for field, message in venue_info.errors.items():
+            field = field.replace("_", " ")
+            flash(f"{message[0]} Please, add a valid {field}")
     return render_template("pages/home.html")
 
 
@@ -323,7 +334,6 @@ def show_artist(artist_id):
     request_artist_dict["past_shows_count"] = len(past_shows)
     request_artist_dict["upcoming_shows_count"] = len(upcoming_shows)
 
-    # TODO criar uma funćão para modificar a data
     for shows in [
         request_artist_dict["upcoming_shows"],
         request_artist_dict["past_shows"],
@@ -458,32 +468,35 @@ def create_artist_form():
 
 @app.route("/artists/create", methods=["POST"])
 def create_artist_submission():
-    try:
-        # REVIEW o forumlário já está válido?
-        artist_info = ArtistForm(request.form)
+    artist_info = ArtistForm(request.form, meta={"csrf": False})
 
-        new_artist = Artist()
-        new_artist.name = artist_info.name.data
-        new_artist.city = artist_info.city.data
-        new_artist.state = artist_info.state.data
-        new_artist.phone = artist_info.phone.data
-        new_artist.genres = artist_info.genres.data
-        new_artist.facebook_link = artist_info.facebook_link.data
-        new_artist.image_link = artist_info.image_link.data
-        new_artist.website_link = artist_info.website_link.data
-        new_artist.seeking_description = artist_info.seeking_description.data
-        new_artist.seeking_venue = artist_info.seeking_venue.data
+    if artist_info.validate():
+        try:
+            new_artist = Artist(**artist_info.to_dict())
+            # new_artist.name = artist_info.name.data
+            # new_artist.city = artist_info.city.data
+            # new_artist.state = artist_info.state.data
+            # new_artist.phone = artist_info.phone.data
+            # new_artist.genres = artist_info.genres.data
+            # new_artist.facebook_link = artist_info.facebook_link.data
+            # new_artist.image_link = artist_info.image_link.data
+            # new_artist.website_link = artist_info.website_link.data
+            # new_artist.seeking_description = artist_info.seeking_description.data
+            # new_artist.seeking_venue = artist_info.seeking_venue.data
 
-        db.session.add(new_artist)
-        db.session.commit()
+            db.session.add(new_artist)
+            db.session.commit()
 
-        flash(f"Artist {request.form['name']} was successfully listed!")
-    except:
-        flash(f"An error occured, {request.form['name']} could not be listed")
-        # see: http://flask.pocoo.org/docs/1.0/patterns/flashing/
+            flash(f"Artist {request.form['name']} was successfully listed!")
+        except:
+            flash(f"An error occured, {request.form['name']} could not be listed")
+        finally:
+            db.session.close()
+    else:
+        for field, message in artist_info.errors.items():
+            field = field.replace("_", " ")
+            flash(f"{message[0]} Please, add a valid {field}")
 
-    finally:
-        db.session.close()
     return render_template("pages/home.html")
 
 
@@ -526,24 +539,27 @@ def create_shows():
 
 @app.route("/shows/create", methods=["POST"])
 def create_show_submission():
-    try:
-        # REVIEW o forumlário já está válido?
-        new_show_info = ShowForm(request.form)
+    new_show_info = ShowForm(request.form, meta={"csrf": False})
 
-        new_show = Shows()
-        new_show.artist_id = new_show_info.artist_id.data
-        new_show.venue_id = new_show_info.venue_id.data
-        new_show.start_time = new_show_info.start_time.data
+    if new_show_info.validate():
+        try:
+            new_show = Shows()
+            new_show.artist_id = new_show_info.artist_id.data
+            new_show.venue_id = new_show_info.venue_id.data
+            new_show.start_time = new_show_info.start_time.data
 
-        db.session.add(new_show)
-        db.session.commit()
+            db.session.add(new_show)
+            db.session.commit()
 
-        flash("Show was successfully listed!")
-    except:
-        flash(f"An error occured, current show could not be listed")
-
-    finally:
-        db.session.close()
+            flash("Show was successfully listed!")
+        except:
+            flash(f"An error occured, current show could not be listed")
+        finally:
+            db.session.close()
+    else:
+        for field, message in new_show_info.errors.items():
+            field = field.replace("_", " ")
+            flash(f"{message[0]} Please, add a valid {field}")
     return render_template("pages/home.html")
 
 

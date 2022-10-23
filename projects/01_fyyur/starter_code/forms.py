@@ -1,6 +1,8 @@
 import re
+import enum
 from datetime import datetime
-from flask_wtf import Form, FlaskForm
+from markupsafe import escape
+from flask_wtf import FlaskForm
 from wtforms import (
     StringField,
     SelectField,
@@ -9,7 +11,8 @@ from wtforms import (
     BooleanField,
     ValidationError,
 )
-from wtforms.validators import DataRequired, AnyOf, URL, Regexp, InputRequired
+from wtforms.validators import DataRequired, URL, InputRequired, Optional
+
 
 STATE_OPTIONS = [
     ("AL", "AL"),
@@ -65,32 +68,55 @@ STATE_OPTIONS = [
     ("WY", "WY"),
 ]
 
-GENRES_OPTIONS = [
-    ("Alternative", "Alternative"),
-    ("Blues", "Blues"),
-    ("Classical", "Classical"),
-    ("Country", "Country"),
-    ("Electronic", "Electronic"),
-    ("Folk", "Folk"),
-    ("Funk", "Funk"),
-    ("Hip-Hop", "Hip-Hop"),
-    ("Heavy Metal", "Heavy Metal"),
-    ("Instrumental", "Instrumental"),
-    ("Jazz", "Jazz"),
-    ("Musical Theatre", "Musical Theatre"),
-    ("Pop", "Pop"),
-    ("Punk", "Punk"),
-    ("R&B", "R&B"),
-    ("Reggae", "Reggae"),
-    ("Rock n Roll", "Rock n Roll"),
-    ("Soul", "Soul"),
-    ("Other", "Other"),
-]
+
+class GenresOptions(enum.Enum):
+    Alternative = "Alternative"
+    Blues = "Blues"
+    Classical = "Classical"
+    Country = "Country"
+    Electronic = "Electronic"
+    Folk = "Folk"
+    Funk = "Funk"
+    Hipop = "Hip-Hop"
+    HeavyMetal = "Heavy Metal"
+    Instrumental = "Instrumental"
+    Jazz = "Jazz"
+    MusicalTheatre = "Musical Theatre"
+    Pop = "Pop"
+    Punk = "Punk"
+    RB = "R&B"
+    Reggae = "Reggae"
+    RocknRoll = "Rock n Roll"
+    Soul = "Soul"
+    Other = "Other"
+
+    def __str__(self):
+        return self.name
+
+    def __html__(self):
+        return self.value
 
 
 def validate_phone(form, field):
     if not re.search(r"^[\+\(]?\d+(?:[- \)\(]+\d+)+$", field.data):
         raise ValidationError("Invalid phone number!")
+
+
+def genres_enum_opts(enum):
+    # Adapted from: https://stackoverflow.com/questions/44078845/using-wtforms-with-enum
+    assert not {"__str__", "__html__"}.isdisjoint(
+        vars(enum)
+    ), "The {!r} enum class does not implement __str__ and __html__ methods"
+
+    def coerce(name):
+        if isinstance(name, enum):
+            return name
+        try:
+            return enum[name]
+        except KeyError:
+            raise ValueError(name)
+
+    return {"choices": [(v.name, v.value) for v in enum]}
 
 
 class ShowForm(FlaskForm):
@@ -108,18 +134,14 @@ class VenueForm(FlaskForm):
     address = StringField("address", validators=[DataRequired()])
     phone = StringField(
         "phone",
-        # [Regexp(regex=r"^[\+\(]?\d+(?:[- \)\(]+\d+)+$", message=("Invalid phone number phone number"))]
         validators=[InputRequired(), validate_phone],
     )
     image_link = StringField("image_link")
     genres = SelectMultipleField(
-        # TODO implement enum restriction
-        "genres",
-        validators=[DataRequired()],
-        choices=GENRES_OPTIONS,
+        "genres", validators=[DataRequired()], **genres_enum_opts(GenresOptions)
     )
-    facebook_link = StringField("facebook_link", validators=[URL()])
-    website_link = StringField("website_link", validators=[URL()])
+    facebook_link = StringField("facebook_link", validators=[Optional(), URL()])
+    website_link = StringField("website_link", validators=[Optional(), URL()])
 
     seeking_talent = BooleanField("seeking_talent")
 
@@ -133,15 +155,14 @@ class ArtistForm(FlaskForm):
     phone = StringField("phone", validators=[InputRequired(), validate_phone])
     image_link = StringField("image_link")
     genres = SelectMultipleField(
-        "genres", validators=[DataRequired()], choices=GENRES_OPTIONS
+        "genres", validators=[DataRequired()], **genres_enum_opts(GenresOptions)
     )
     facebook_link = StringField(
-        # TODO implement enum restriction
         "facebook_link",
-        validators=[URL()],
+        validators=[Optional(), URL()],
     )
 
-    website_link = StringField("website_link")
+    website_link = StringField("website_link", validators=[Optional(), URL()])
 
     seeking_venue = BooleanField("seeking_venue")
 

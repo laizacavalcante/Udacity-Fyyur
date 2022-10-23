@@ -1,13 +1,7 @@
-# TODO
-# Implementar busca de shows
-# Verificar URL vazia (inserção de artistas ou venues)
-
-
 # ----------------------------------------------------------------------------#
 # Imports
 # ----------------------------------------------------------------------------#
 
-import json
 import babel
 import logging
 import dateutil.parser
@@ -34,7 +28,6 @@ app.config.from_object("config")
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
 
-# REVIEW: Resolve circular import
 from models import *
 
 
@@ -152,7 +145,7 @@ def show_venue(venue_id):
         .select_from(Venue)
         .join(Shows)
         .join(Artist)
-        .filter(Venue.id == venue_id, Shows.start_time < datetime.now())
+        .filter(Venue.id == venue_id, Shows.start_time <= datetime.now())
         .all()
     )
 
@@ -201,22 +194,19 @@ def create_venue_submission():
 
     # Check Phone number and URLs
     if venue_info.validate_on_submit():
-        # if venue_info.validate():
-
         try:
-            new_venue = Venue(**venue_info.to_dict())
-            # new_venue = Venue()
-            # new_venue.name = venue_info.name.data
-            # new_venue.city = venue_info.city.data
-            # new_venue.state = venue_info.state.data
-            # new_venue.address = venue_info.address.data
-            # new_venue.phone = venue_info.phone.data
-            # new_venue.genres = venue_info.genres.data
-            # new_venue.facebook_link = venue_info.facebook_link.data
-            # new_venue.image_link = venue_info.image_link.data
-            # new_venue.website_link = venue_info.website_link.data
-            # new_venue.seeking_description = venue_info.seeking_description.data
-            # new_venue.seeking_talent = venue_info.seeking_talent.data
+            new_venue = Venue()
+            new_venue.name = venue_info.name.data
+            new_venue.city = venue_info.city.data
+            new_venue.state = venue_info.state.data
+            new_venue.address = venue_info.address.data
+            new_venue.phone = venue_info.phone.data
+            new_venue.genres = venue_info.genres.data
+            new_venue.facebook_link = venue_info.facebook_link.data
+            new_venue.image_link = venue_info.image_link.data
+            new_venue.website_link = venue_info.website_link.data
+            new_venue.seeking_description = venue_info.seeking_description.data
+            new_venue.seeking_talent = venue_info.seeking_talent.data
 
             db.session.add(new_venue)
             db.session.commit()
@@ -283,6 +273,7 @@ def search_artists():
         artist_m["num_upcoming_shows"] = num_upcoming_shows
 
     response = {"count": len(artist_match), "data": artist_match_dict}
+
     return render_template(
         "pages/search_artists.html",
         results=response,
@@ -325,7 +316,7 @@ def show_artist(artist_id):
         .select_from(Venue)
         .join(Shows)
         .join(Artist)
-        .filter(Artist.id == artist_id, Shows.start_time < datetime.now())
+        .filter(Artist.id == artist_id, Shows.start_time > datetime.now())
         .all()
     )
 
@@ -472,17 +463,17 @@ def create_artist_submission():
 
     if artist_info.validate():
         try:
-            new_artist = Artist(**artist_info.to_dict())
-            # new_artist.name = artist_info.name.data
-            # new_artist.city = artist_info.city.data
-            # new_artist.state = artist_info.state.data
-            # new_artist.phone = artist_info.phone.data
-            # new_artist.genres = artist_info.genres.data
-            # new_artist.facebook_link = artist_info.facebook_link.data
-            # new_artist.image_link = artist_info.image_link.data
-            # new_artist.website_link = artist_info.website_link.data
-            # new_artist.seeking_description = artist_info.seeking_description.data
-            # new_artist.seeking_venue = artist_info.seeking_venue.data
+            new_artist = Artist()
+            new_artist.name = artist_info.name.data
+            new_artist.city = artist_info.city.data
+            new_artist.state = artist_info.state.data
+            new_artist.phone = artist_info.phone.data
+            new_artist.genres = artist_info.genres.data
+            new_artist.facebook_link = artist_info.facebook_link.data
+            new_artist.image_link = artist_info.image_link.data
+            new_artist.website_link = artist_info.website_link.data
+            new_artist.seeking_description = artist_info.seeking_description.data
+            new_artist.seeking_venue = artist_info.seeking_venue.data
 
             db.session.add(new_artist)
             db.session.commit()
@@ -506,12 +497,12 @@ def create_artist_submission():
 
 @app.route("/shows")
 def shows():
-    # displays list of shows at /shows
     data = (
         db.session.query(
             Venue.id.label("venue_id"),
             Venue.name.label("venue_name"),
             Artist.id.label("artist_id"),
+            Artist.name.label("artist_name"),
             Artist.image_link.label("artist_image_link"),
             Shows.start_time,
         )
@@ -528,6 +519,55 @@ def shows():
                 show["start_time"] = v.isoformat()
 
     return render_template("pages/shows.html", shows=dict_data)
+
+
+@app.route("/shows/search", methods=["POST"])
+def search_shows():
+    print("route search_shows")
+    search_word = request.form.get("search_term")
+    search_word = search_word.lower()
+    print(search_word)
+
+    try:
+        search_date = datetime.strptime(search_word, "%Y-%m-%d")
+
+    except ValueError:
+        search_date = None
+        print(f"term is not a date, search_date {search_date}")
+
+    search_results = (
+        db.session.query(
+            Venue.id.label("venue_id"),
+            Venue.name.label("venue_name"),
+            Artist.id.label("artist_id"),
+            Artist.name.label("artist_name"),
+            Artist.image_link.label("artist_image_link"),
+            Shows.start_time,
+        )
+        .filter(
+            (Venue.name.ilike(f"%{search_word}%"))
+            | (Artist.name.ilike(f"%{search_word}%"))
+            | (func.date(Shows.start_time) == search_date)
+        )
+        .join(Shows, (Shows.venue_id == Venue.id))
+        .join(Artist, (Shows.artist_id == Artist.id))
+        .all()
+    )
+
+    search_results_dict = [dict(result) for result in search_results]
+
+    for show in search_results_dict:
+        for k, v in show.items():
+            if k == "start_time":
+                show["start_time"] = v.isoformat()
+
+    response = {
+        "term": request.form.get("search_term", ""),
+        "count": len(search_results_dict),
+        "data": search_results_dict,
+    }
+
+    return render_template("pages/show.html", shows=response)
 
 
 @app.route("/shows/create")
